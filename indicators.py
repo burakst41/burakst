@@ -2,15 +2,16 @@ import pandas as pd
 import numpy as np
 
 
+# =========================================================
+# TEMEL GÖSTERGELER
+# =========================================================
+
 def sma(series, period):
     return series.rolling(period).mean()
 
 
 def ema(series, period):
-    return series.ewm(
-        span=period,
-        adjust=False
-    ).mean()
+    return series.ewm(span=period, adjust=False).mean()
 
 
 def rsi(series, period=14):
@@ -31,8 +32,14 @@ def rsi(series, period=14):
 
     rs = avg_gain / avg_loss
 
-    return 100 - (100 / (1 + rs))
+    result = 100 - (100 / (1 + rs))
 
+    return result
+
+
+# =========================================================
+# MACD
+# =========================================================
 
 def macd(series):
     ema12 = ema(series, 12)
@@ -40,34 +47,33 @@ def macd(series):
 
     macd_line = ema12 - ema26
 
-    signal_line = ema(
-        macd_line,
-        9
-    )
+    signal = macd_line.ewm(
+        span=9,
+        adjust=False
+    ).mean()
 
-    histogram = macd_line - signal_line
+    histogram = macd_line - signal
 
     return (
         macd_line,
-        signal_line,
+        signal,
         histogram
     )
 
 
-def bollinger_bands(series, period=20, std_dev=2):
-    middle = sma(series, period)
+# =========================================================
+# BOLLINGER BANDS
+# =========================================================
 
-    std = series.rolling(
-        period
-    ).std()
+def bollinger_bands(series, period=20):
 
-    upper = middle + (
-        std * std_dev
-    )
+    middle = series.rolling(period).mean()
 
-    lower = middle - (
-        std * std_dev
-    )
+    std = series.rolling(period).std()
+
+    upper = middle + (std * 2)
+
+    lower = middle - (std * 2)
 
     return (
         upper,
@@ -76,149 +82,324 @@ def bollinger_bands(series, period=20, std_dev=2):
     )
 
 
+# =========================================================
+# ATR
+# =========================================================
+
 def atr(data, period=14):
+
     high = data["High"]
+
     low = data["Low"]
+
     close = data["Close"]
 
     previous_close = close.shift(1)
 
     tr1 = high - low
 
-    tr2 = (
-        high - previous_close
-    ).abs()
+    tr2 = (high - previous_close).abs()
 
-    tr3 = (
-        low - previous_close
-    ).abs()
+    tr3 = (low - previous_close).abs()
 
     true_range = pd.concat(
         [tr1, tr2, tr3],
         axis=1
     ).max(axis=1)
 
-    return true_range.ewm(
+    result = true_range.ewm(
         alpha=1 / period,
         adjust=False
     ).mean()
 
+    return result
+
+
+# =========================================================
+# MOMENTUM
+# =========================================================
 
 def momentum(series, period=10):
-    return (
-        series / series.shift(period) - 1
-    ) * 100
 
+    return series.pct_change(period) * 100
+
+
+# =========================================================
+# VOLATILITY
+# =========================================================
 
 def volatility(series, period=20):
+
     returns = series.pct_change()
 
     return (
-        returns.rolling(period).std()
+        returns
+        .rolling(period)
+        .std()
         * np.sqrt(252)
         * 100
     )
 
 
+# =========================================================
+# HACİM ORANI
+# =========================================================
+
 def volume_ratio(volume, period=20):
-    average_volume = (
-        volume.rolling(period).mean()
-    )
+
+    average_volume = volume.rolling(
+        period
+    ).mean()
 
     return volume / average_volume
 
 
+# =========================================================
+# TÜM GÖSTERGELERİ HESAPLA
+# =========================================================
+
 def calculate_indicators(data):
+
+    data = data.copy()
+
+    # MultiIndex güvenliği
+    if isinstance(data.columns, pd.MultiIndex):
+
+        data.columns = data.columns.get_level_values(0)
+
+    required = [
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume"
+    ]
+
+    missing = [
+        column
+        for column in required
+        if column not in data.columns
+    ]
+
+    if missing:
+
+        raise ValueError(
+            "Eksik veri sütunları: "
+            + ", ".join(missing)
+        )
+
+    data = data[required].copy()
+
+    # Sayısal değerlere çevir
+    for column in required:
+
+        data[column] = pd.to_numeric(
+            data[column],
+            errors="coerce"
+        )
+
+    data = data.dropna()
+
+    if len(data) < 200:
+
+        raise ValueError(
+            "Analiz için en az 200 günlük veri gerekli."
+        )
+
     close = data["Close"]
 
-    result = data.copy()
+    # -----------------------------------------------------
+    # SMA
+    # -----------------------------------------------------
 
-    # Hareketli ortalamalar
-    result["SMA20"] = sma(close, 20)
-    result["SMA50"] = sma(close, 50)
-    result["SMA200"] = sma(close, 200)
+    data["SMA20"] = sma(
+        close,
+        20
+    )
 
-    result["EMA20"] = ema(close, 20)
-    result["EMA50"] = ema(close, 50)
-    result["EMA200"] = ema(close, 200)
+    data["SMA50"] = sma(
+        close,
+        50
+    )
 
+    data["SMA200"] = sma(
+        close,
+        200
+    )
+
+    # -----------------------------------------------------
+    # EMA
+    # -----------------------------------------------------
+
+    data["EMA20"] = ema(
+        close,
+        20
+    )
+
+    data["EMA50"] = ema(
+        close,
+        50
+    )
+
+    data["EMA200"] = ema(
+        close,
+        200
+    )
+
+    # -----------------------------------------------------
     # RSI
-    result["RSI14"] = rsi(close, 14)
+    # -----------------------------------------------------
 
-    # MACD
-    (
-        result["MACD"],
-        result["MACD_SIGNAL"],
-        result["MACD_HIST"]
-    ) = macd(close)
-
-    # Bollinger
-    (
-        result["BB_UPPER"],
-        result["BB_MIDDLE"],
-        result["BB_LOWER"]
-    ) = bollinger_bands(close)
-
-    # ATR
-    result["ATR14"] = atr(
-        result,
+    data["RSI14"] = rsi(
+        close,
         14
     )
 
-    # Momentum
-    result["MOMENTUM10"] = momentum(
+    # -----------------------------------------------------
+    # MACD
+    # -----------------------------------------------------
+
+    (
+        data["MACD"],
+        data["MACD_SIGNAL"],
+        data["MACD_HIST"]
+    ) = macd(close)
+
+    # -----------------------------------------------------
+    # BOLLINGER
+    # -----------------------------------------------------
+
+    (
+        data["BB_UPPER"],
+        data["BB_MIDDLE"],
+        data["BB_LOWER"]
+    ) = bollinger_bands(
+        close,
+        20
+    )
+
+    # -----------------------------------------------------
+    # ATR
+    # -----------------------------------------------------
+
+    data["ATR14"] = atr(
+        data,
+        14
+    )
+
+    # -----------------------------------------------------
+    # MOMENTUM
+    # -----------------------------------------------------
+
+    data["MOMENTUM10"] = momentum(
         close,
         10
     )
 
-    # Volatilite
-    result["VOLATILITY20"] = volatility(
+    # -----------------------------------------------------
+    # VOLATILITY
+    # -----------------------------------------------------
+
+    data["VOLATILITY20"] = volatility(
         close,
         20
     )
 
-    # Hacim oranı
-    result["VOLUME_RATIO"] = volume_ratio(
-        result["Volume"],
+    # -----------------------------------------------------
+    # HACİM ORANI
+    # -----------------------------------------------------
+
+    data["VOLUME_RATIO"] = volume_ratio(
+        data["Volume"],
         20
     )
 
-    return result
-    def get_latest_indicators(data):
-    result = calculate_indicators(data)
+    return data
+
+
+# =========================================================
+# SON GÖSTERGELERİ AL
+# =========================================================
+
+def get_latest_indicators(data):
+
+    result = calculate_indicators(
+        data
+    )
 
     latest = result.iloc[-1]
 
     return {
-        "price": float(latest["Close"]),
 
-        "sma20": float(latest["SMA20"]),
-        "sma50": float(latest["SMA50"]),
-        "sma200": float(latest["SMA200"]),
+        "price": float(
+            latest["Close"]
+        ),
 
-        "ema20": float(latest["EMA20"]),
-        "ema50": float(latest["EMA50"]),
-        "ema200": float(latest["EMA200"]),
+        "sma20": float(
+            latest["SMA20"]
+        ),
 
-        "rsi": float(latest["RSI14"]),
+        "sma50": float(
+            latest["SMA50"]
+        ),
 
-        "macd": float(latest["MACD"]),
-        "macd_signal": float(latest["MACD_SIGNAL"]),
-        "macd_hist": float(latest["MACD_HIST"]),
+        "sma200": float(
+            latest["SMA200"]
+        ),
 
-        "bb_upper": float(latest["BB_UPPER"]),
-        "bb_middle": float(latest["BB_MIDDLE"]),
-        "bb_lower": float(latest["BB_LOWER"]),
+        "ema20": float(
+            latest["EMA20"]
+        ),
 
-        "atr": float(latest["ATR14"]),
+        "ema50": float(
+            latest["EMA50"]
+        ),
 
-        "momentum": float(latest["MOMENTUM10"]),
+        "ema200": float(
+            latest["EMA200"]
+        ),
 
-        "volatility": float(latest["VOLATILITY20"]),
+        "rsi": float(
+            latest["RSI14"]
+        ),
 
-        "volume_ratio": float(latest["VOLUME_RATIO"])
+        "macd": float(
+            latest["MACD"]
+        ),
+
+        "macd_signal": float(
+            latest["MACD_SIGNAL"]
+        ),
+
+        "macd_hist": float(
+            latest["MACD_HIST"]
+        ),
+
+        "bb_upper": float(
+            latest["BB_UPPER"]
+        ),
+
+        "bb_middle": float(
+            latest["BB_MIDDLE"]
+        ),
+
+        "bb_lower": float(
+            latest["BB_LOWER"]
+        ),
+
+        "atr": float(
+            latest["ATR14"]
+        ),
+
+        "momentum": float(
+            latest["MOMENTUM10"]
+        ),
+
+        "volatility": float(
+            latest["VOLATILITY20"]
+        ),
+
+        "volume_ratio": float(
+            latest["VOLUME_RATIO"]
+        )
     }
-
-
-
-        
