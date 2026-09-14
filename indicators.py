@@ -3,18 +3,30 @@ import numpy as np
 
 
 # =========================================================
-# TEMEL GÖSTERGELER
+# BASİT HAREKETLİ ORTALAMA
 # =========================================================
 
 def sma(series, period):
     return series.rolling(period).mean()
 
 
-def ema(series, period):
-    return series.ewm(span=period, adjust=False).mean()
+# =========================================================
+# ÜSTEL HAREKETLİ ORTALAMA
+# =========================================================
 
+def ema(series, period):
+    return series.ewm(
+        span=period,
+        adjust=False
+    ).mean()
+
+
+# =========================================================
+# RSI
+# =========================================================
 
 def rsi(series, period=14):
+
     delta = series.diff()
 
     gain = delta.clip(lower=0)
@@ -32,7 +44,9 @@ def rsi(series, period=14):
 
     rs = avg_gain / avg_loss
 
-    result = 100 - (100 / (1 + rs))
+    result = 100 - (
+        100 / (1 + rs)
+    )
 
     return result
 
@@ -42,6 +56,7 @@ def rsi(series, period=14):
 # =========================================================
 
 def macd(series):
+
     ema12 = ema(series, 12)
     ema26 = ema(series, 26)
 
@@ -67,13 +82,21 @@ def macd(series):
 
 def bollinger_bands(series, period=20):
 
-    middle = series.rolling(period).mean()
+    middle = series.rolling(
+        period
+    ).mean()
 
-    std = series.rolling(period).std()
+    std = series.rolling(
+        period
+    ).std()
 
-    upper = middle + (std * 2)
+    upper = middle + (
+        std * 2
+    )
 
-    lower = middle - (std * 2)
+    lower = middle - (
+        std * 2
+    )
 
     return (
         upper,
@@ -89,30 +112,30 @@ def bollinger_bands(series, period=20):
 def atr(data, period=14):
 
     high = data["High"]
-
     low = data["Low"]
-
     close = data["Close"]
 
     previous_close = close.shift(1)
 
     tr1 = high - low
 
-    tr2 = (high - previous_close).abs()
+    tr2 = (
+        high - previous_close
+    ).abs()
 
-    tr3 = (low - previous_close).abs()
+    tr3 = (
+        low - previous_close
+    ).abs()
 
     true_range = pd.concat(
         [tr1, tr2, tr3],
         axis=1
     ).max(axis=1)
 
-    result = true_range.ewm(
+    return true_range.ewm(
         alpha=1 / period,
         adjust=False
     ).mean()
-
-    return result
 
 
 # =========================================================
@@ -121,11 +144,14 @@ def atr(data, period=14):
 
 def momentum(series, period=10):
 
-    return series.pct_change(period) * 100
+    return (
+        series.pct_change(period)
+        * 100
+    )
 
 
 # =========================================================
-# VOLATILITY
+# VOLATİLİTE
 # =========================================================
 
 def volatility(series, period=20):
@@ -145,27 +171,40 @@ def volatility(series, period=20):
 # HACİM ORANI
 # =========================================================
 
-def volume_ratio(volume, period=20):
+def volume_ratio(
+    volume,
+    period=20
+):
 
-    average_volume = volume.rolling(
-        period
-    ).mean()
+    average_volume = (
+        volume
+        .rolling(period)
+        .mean()
+    )
 
-    return volume / average_volume
+    return (
+        volume / average_volume
+    )
 
 
 # =========================================================
-# TÜM GÖSTERGELERİ HESAPLA
+# TÜM GÖSTERGELER
 # =========================================================
 
 def calculate_indicators(data):
 
     data = data.copy()
 
-    # MultiIndex güvenliği
-    if isinstance(data.columns, pd.MultiIndex):
+    # YFinance MultiIndex güvenliği
+    if isinstance(
+        data.columns,
+        pd.MultiIndex
+    ):
 
-        data.columns = data.columns.get_level_values(0)
+        data.columns = (
+            data.columns
+            .get_level_values(0)
+        )
 
     required = [
         "Open",
@@ -188,9 +227,10 @@ def calculate_indicators(data):
             + ", ".join(missing)
         )
 
-    data = data[required].copy()
+    data = data[
+        required
+    ].copy()
 
-    # Sayısal değerlere çevir
     for column in required:
 
         data[column] = pd.to_numeric(
@@ -203,15 +243,13 @@ def calculate_indicators(data):
     if len(data) < 200:
 
         raise ValueError(
-            "Analiz için en az 200 günlük veri gerekli."
+            "Analiz için en az "
+            "200 günlük veri gerekli."
         )
 
     close = data["Close"]
 
-    # -----------------------------------------------------
     # SMA
-    # -----------------------------------------------------
-
     data["SMA20"] = sma(
         close,
         20
@@ -227,10 +265,7 @@ def calculate_indicators(data):
         200
     )
 
-    # -----------------------------------------------------
     # EMA
-    # -----------------------------------------------------
-
     data["EMA20"] = ema(
         close,
         20
@@ -246,29 +281,20 @@ def calculate_indicators(data):
         200
     )
 
-    # -----------------------------------------------------
     # RSI
-    # -----------------------------------------------------
-
     data["RSI14"] = rsi(
         close,
         14
     )
 
-    # -----------------------------------------------------
     # MACD
-    # -----------------------------------------------------
-
     (
         data["MACD"],
         data["MACD_SIGNAL"],
         data["MACD_HIST"]
     ) = macd(close)
 
-    # -----------------------------------------------------
-    # BOLLINGER
-    # -----------------------------------------------------
-
+    # Bollinger
     (
         data["BB_UPPER"],
         data["BB_MIDDLE"],
@@ -278,37 +304,25 @@ def calculate_indicators(data):
         20
     )
 
-    # -----------------------------------------------------
     # ATR
-    # -----------------------------------------------------
-
     data["ATR14"] = atr(
         data,
         14
     )
 
-    # -----------------------------------------------------
-    # MOMENTUM
-    # -----------------------------------------------------
-
+    # Momentum
     data["MOMENTUM10"] = momentum(
         close,
         10
     )
 
-    # -----------------------------------------------------
-    # VOLATILITY
-    # -----------------------------------------------------
-
+    # Volatilite
     data["VOLATILITY20"] = volatility(
         close,
         20
     )
 
-    # -----------------------------------------------------
-    # HACİM ORANI
-    # -----------------------------------------------------
-
+    # Hacim
     data["VOLUME_RATIO"] = volume_ratio(
         data["Volume"],
         20
