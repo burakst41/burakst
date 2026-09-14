@@ -236,3 +236,6 @@ def get_latest_indicators(data):
 
         "volume_ratio": float(
             latest
+    latest["VOLUME_RATIO"]
+    )
+    }
