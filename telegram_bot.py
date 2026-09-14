@@ -49,8 +49,11 @@ def get_updates(offset=None):
     return response.json()
 
 
-def analyze_stock():
-    symbol = "THYAO.IS"
+def analyze_stock(symbol):
+    symbol = symbol.upper().strip()
+
+    if not symbol.endswith(".IS"):
+        symbol += ".IS"
 
     prices = get_close_prices(
         symbol,
@@ -62,61 +65,112 @@ def analyze_stock():
     current_rsi = rsi(prices, 14)
     signal = get_signal(prices)
 
+    clean_symbol = symbol.replace(".IS", "")
+
     message = (
-        "📊 TRADING BOT\n\n"
-        f"Hisse: {symbol}\n"
-        f"Son fiyat: {current_price:.2f} TL\n"
-        f"SMA20: {sma20:.2f}\n"
+        "📊 HİSSE ANALİZİ\n\n"
+        f"🏢 Hisse: {clean_symbol}\n"
+        f"💰 Son fiyat: {current_price:.2f} TL\n\n"
+        "📈 TEKNİK GÖSTERGELER\n"
+        f"SMA20: {sma20:.2f} TL\n"
         f"RSI14: {current_rsi:.2f}\n\n"
         f"🎯 Sinyal: {signal}\n\n"
-        "⚠️ Bu bir yatırım tavsiyesi değildir."
+        "⚠️ Bu analiz yatırım tavsiyesi değildir."
     )
 
     return message
 
 
 def handle_message(chat_id, text):
-    text = text.lower().strip()
+    text = text.strip()
 
-    if text == "/start":
+    lower_text = text.lower()
+
+    if lower_text == "/start":
         send_message(
             chat_id,
             "🤖 Trading Bot aktif!\n\n"
             "Komutlar:\n"
-            "/analiz - THYAO analizini göster\n"
-            "/durum - Bot durumunu göster"
+            "/analiz TUPRS\n"
+            "/analiz SASA\n"
+            "/analiz ASELS\n"
+            "/analiz THYAO\n"
+            "/durum\n\n"
+            "Ayrıca doğal şekilde de sorabilirsin:\n"
+            "TUPRS nasıl?\n"
+            "SASA nasıl?"
         )
 
-    elif text == "/analiz":
+    elif lower_text == "/durum":
+        send_message(
+            chat_id,
+            "🟢 Bot çalışıyor.\n\n"
+            "Veri bağlantısı: Aktif\n"
+            "Analiz motoru: Aktif"
+        )
+
+    elif lower_text.startswith("/analiz"):
+        parts = text.split()
+
+        if len(parts) < 2:
+            send_message(
+                chat_id,
+                "❌ Hisse kodu yazmalısın.\n\n"
+                "Örnek:\n"
+                "/analiz TUPRS\n"
+                "/analiz SASA\n"
+                "/analiz ASELS"
+            )
+            return
+
+        symbol = parts[1]
+
         try:
-            message = analyze_stock()
+            message = analyze_stock(symbol)
             send_message(chat_id, message)
 
         except Exception as error:
             send_message(
                 chat_id,
-                f"❌ Analiz hatası:\n{error}"
+                f"❌ {symbol.upper()} analiz edilemedi.\n\n"
+                "Hisse kodunu kontrol et."
             )
 
-    elif text == "/durum":
-        send_message(
-            chat_id,
-            "🟢 Bot çalışıyor.\n\n"
-            "Veri bağlantısı: Aktif\n"
-            "Strateji: RSI + SMA20"
-        )
+    elif lower_text.endswith(" nasıl?"):
+        words = text.split()
+
+        if len(words) >= 2:
+            symbol = words[0]
+
+            try:
+                message = analyze_stock(symbol)
+                send_message(chat_id, message)
+
+            except Exception:
+                send_message(
+                    chat_id,
+                    f"❌ {symbol.upper()} analiz edilemedi.\n\n"
+                    "Hisse kodunu kontrol et."
+                )
+        else:
+            send_message(
+                chat_id,
+                "Örnek: TUPRS nasıl?"
+            )
 
     else:
         send_message(
             chat_id,
-            "❓ Bilinmeyen komut.\n\n"
-            "/analiz\n"
-            "/durum"
+            "❓ Komutu anlayamadım.\n\n"
+            "Örnek:\n"
+            "/analiz TUPRS\n"
+            "/analiz SASA\n"
+            "TUPRS nasıl?"
         )
 
 
 def main():
-    print("=== TELEGRAM TRADING BOT ===")
+    print("=== BIST TELEGRAM TRADING BOT ===")
     print("Bot başlatılıyor...")
 
     offset = None
@@ -143,9 +197,7 @@ def main():
                 chat_id = message["chat"]["id"]
                 text = message.get("text", "")
 
-                print(
-                    f"Mesaj geldi: {text}"
-                )
+                print(f"Mesaj geldi: {text}")
 
                 handle_message(
                     chat_id,
@@ -153,11 +205,7 @@ def main():
                 )
 
         except Exception as error:
-            print(
-                "Bot hatası:",
-                error
-            )
-
+            print("Bot hatası:", error)
             time.sleep(5)
 
 
