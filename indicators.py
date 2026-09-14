@@ -184,9 +184,7 @@ def calculate_indicators(data):
     )
 
     return result
-
-
-def get_latest_indicators(data):
+    def get_latest_indicators(data):
     result = calculate_indicators(data)
 
     latest = result.iloc[-1]
@@ -205,37 +203,22 @@ def get_latest_indicators(data):
         "rsi": float(latest["RSI14"]),
 
         "macd": float(latest["MACD"]),
-        "macd_signal": float(
-            latest["MACD_SIGNAL"]
-        ),
-        "macd_hist": float(
-            latest["MACD_HIST"]
-        ),
+        "macd_signal": float(latest["MACD_SIGNAL"]),
+        "macd_hist": float(latest["MACD_HIST"]),
 
-        "bb_upper": float(
-            latest["BB_UPPER"]
-        ),
-        "bb_middle": float(
-            latest["BB_MIDDLE"]
-        ),
-        "bb_lower": float(
-            latest["BB_LOWER"]
-        ),
+        "bb_upper": float(latest["BB_UPPER"]),
+        "bb_middle": float(latest["BB_MIDDLE"]),
+        "bb_lower": float(latest["BB_LOWER"]),
 
-        "atr": float(
-            latest["ATR14"]
-        ),
+        "atr": float(latest["ATR14"]),
 
-        "momentum": float(
-            latest["MOMENTUM10"]
-        ),
+        "momentum": float(latest["MOMENTUM10"]),
 
-        "volatility": float(
-            latest["VOLATILITY20"]
-        ),
+        "volatility": float(latest["VOLATILITY20"]),
 
-        "volume_ratio": float(
-            latest
-    latest["VOLUME_RATIO"]
-    )
+        "volume_ratio": float(latest["VOLUME_RATIO"])
     }
+
+
+
+        
