@@ -1,4 +1,4 @@
-name: Trading Bot
+name: Telegram Trading Bot
 
 on:
   workflow_dispatch:
@@ -19,5 +19,7 @@ jobs:
       - name: Kütüphaneleri kur
         run: pip install -r requirements.txt
 
-      - name: Botu çalıştır
-        run: python main.py
+      - name: Telegram botunu çalıştır
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: python telegram_bot.py
